@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"log/slog"
 	"net"
+
+	"github.com/dGilli/gokv/pkg/proto"
 )
 
 const defaultListenAddr = ":5301"
@@ -51,11 +52,26 @@ func (s *Server) Start() error {
 	return s.acceptLoop()
 }
 
+func (s *Server) handleRawMessage(rawMsg []byte) error {
+    cmd, err := proto.ParseCommand(string(rawMsg))
+    if err != nil {
+        return err
+    }
+    switch v := cmd.(type) {
+    case proto.SetCommand:
+        slog.Info("wanna set a key in to the hash table", "key", v)
+    }
+
+    return nil
+}
+
 func (s *Server) loop() {
 	for {
 		select {
         case rawMsg := <- s.msgCh:
-            fmt.Println(rawMsg)
+            if err := s.handleRawMessage(rawMsg); err != nil {
+                slog.Error("raw message error", "err", err)
+            }
 		case <-s.quitCh:
             return
 		case peer := <-s.addPeerCh:
